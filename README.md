@@ -49,7 +49,8 @@ This pipeline automates the following steps:
     ```
 5.  (Optional) Set up Hugging Face Hub token for PyAnnote diarization:
     *   Create a `.env` file in the project root.
-    *   Add your token: `HF_AUTH_TOKEN=your_huggingface_auth_token`
+    *   Add your Hugging token: `HF_AUTH_TOKEN=your_huggingface_auth_token`
+    *   Add your Mistral token: `Mistral_AUTH_TOKEN=your_Mistral_auth_token`
 
 ## Fine-tuned Weights 
 
