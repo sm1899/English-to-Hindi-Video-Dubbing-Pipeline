@@ -12,7 +12,7 @@ This pipeline automates the following steps:
 5.  **Translation:** Translates the English text segments into Hindi using `NLLB-200` (default: `facebook/nllb-200-distilled-600M`) or optionally `Mistral` (via `--use_llm`).
 6.  **Voice Cloning & Hindi TTS:** Generates Hindi speech in the original speaker's voice using `Coqui XTTS v2` zero-shot capabilities.
 7.  **(Optional) Lip Synchronization:** Modifies the original video's lip movements to match the generated Hindi speech using `LatentSync v1.5`.
-8.  **Final Assembly:** Combines the generated Hindi speech (potentially with original background audio) and the lip-synced video (if generated) into the final output file.
+8.  **Final Assembly:** Combines the generated Hindi speech and the lip-synced video into the final output file.
 
 ## Features
 
@@ -21,7 +21,7 @@ This pipeline automates the following steps:
 *   **Natural Translation:** Employs NLLB-200 or Mistral for English-to-Hindi translation.
 *   **Speaker Diarization:** Supports multi-speaker videos by identifying individual speakers.
 *   **Audio Separation:** Isolates speech from background noise/music for cleaner TTS input and final output mixing.
-*   **Lip Synchronization (Optional):** Integrates LatentSync for realistic lip movements matching the Hindi audio.
+*   **Lip Synchronization :** Integrates LatentSync for realistic lip movements matching the Hindi audio.
 *   **Modular Design:** Easily adaptable and extensible components.
 *   **GPU Acceleration:** Supports GPU usage for faster processing of key steps (Separation, ASR, TTS, Lip Sync).
 
@@ -156,10 +156,8 @@ output/<timestamp>/
     *   Translation (NLLB 3.3B): ~7GB VRAM (smaller models require less)
     *   Lip Sync (LatentSync): ~8GB VRAM
     *   Audio Separation (Demucs): VRAM usage varies, GPU helps speed.
-*   **CPU**: Modern multi-core CPU (8+ cores recommended)
-*   **RAM**: Minimum 16GB, 32GB+ recommended, especially without a high-VRAM GPU.
-*   **Storage**: SSD recommended. ~20-30GB for models + space for intermediate files and output.
-
+*   **RAM**: Minimum 16GB VRAM recommended For inference.
+  
 ### Software Dependencies
 *   Python 3.10+
 *   PyTorch 2.0+
@@ -192,7 +190,7 @@ For higher voice cloning fidelity for specific speakers, especially to improve n
       --batch_size 4 \\
       --use_gpu True
     ```
-3.  **Use Fine-tuned Model:** Reference the output path of the fine-tuned model during TTS generation in the main pipeline (pass the saved sweights path).
+3.  **Use Fine-tuned Model:** Reference the output path of the fine-tuned model during TTS generation in the main pipeline.
 
 ## LatentSync Fine-Tuning
 
