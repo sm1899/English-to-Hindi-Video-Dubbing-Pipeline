@@ -51,9 +51,9 @@ This pipeline automates the following steps:
     *   Create a `.env` file in the project root.
     *   Add your token: `HF_AUTH_TOKEN=your_huggingface_auth_token`
 
-## Pre-trained / Fine-tuned Weights 
+## Fine-tuned Weights 
 
-To  benefit from models already fine-tuned for Hindi performance (as discussed in the fine-tuning sections), pre-trained weights for certain components (like XTTS or LatentSync) is  available.
+To  benefit from models already fine-tuned for Hindi performance (as discussed in the fine-tuning sections), for certain components (like XTTS or LatentSync) is  available.
 
 *   **Download Link:** [https://drive.google.com/drive/folders/1B0EGZBUhwEje3fdcXPtDi74PlqxXSd7A?usp=sharing]
 
