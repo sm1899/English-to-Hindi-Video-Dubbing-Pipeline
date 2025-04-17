@@ -195,7 +195,7 @@ For higher voice cloning fidelity for specific speakers, especially to improve n
 For improved lip-sync accuracy, especially for specific speakers or challenging video conditions, LatentSync can also be fine-tuned. This is particularly relevant for Hindi dubbing, as Hindi phonemes differ significantly from English, and fine-tuning can help the model adapt better. This typically involves training the SyncNet and UNet components on speaker-specific video data.
 
 1.  **Prepare Data:** You will need suitable video footage paired with corresponding audio for the target speaker(s).
-2.  **Run Training:** Explore the scripts within the `LatentSync` directory, such as `train_syncnet.sh` and `train_unet.sh`, as starting points.
+2.  **Run Training:** Read their readme and run `train_syncnet.sh` and `train_unet.sh`, as starting points.
 3.  **Consult LatentSync Documentation:** For detailed instructions on data preparation, training procedures, and using fine-tuned LatentSync models, please refer to the documentation within the `LatentSync` directory itself (e.g., its `README.md` file).
 
 ## Future Development / Considerations
