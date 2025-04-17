@@ -47,7 +47,7 @@ This pipeline automates the following steps:
     ```bash
     git lfs install
     ```
-5.  (Optional) Set up Hugging Face Hub token for PyAnnote diarization:
+5.  (Optional) Set up Hugging Face Hub token for PyAnnote diarization and Mistral Api Key for LLM Translation:
     *   Create a `.env` file in the project root.
     *   Add your Hugging token: `HF_AUTH_TOKEN=your_huggingface_auth_token`
     *   Add your Mistral token: `Mistral_AUTH_TOKEN=your_Mistral_auth_token`
