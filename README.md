@@ -31,9 +31,6 @@ This pipeline automates the following steps:
     ```bash
     git clone https://github.com/your-repo/dubline.git # Replace with your repo URL
     cd dubline
-    # If using lip-sync, initialize/update submodules if LatentSync is one,
-    # or follow LatentSync's specific installation instructions in its directory.
-    # git submodule update --init --recursive # Example if it's a submodule
     ```
 2.  Install Python dependencies:
     ```bash
