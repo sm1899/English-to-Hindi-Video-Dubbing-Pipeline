@@ -1,0 +1,284 @@
+# ENGLISH-TO-HINDI VIDEO DUBBING PIPELINE: DETAILED DESIGN SPECIFICATION
+
+## 1. SYSTEM OVERVIEW
+
+This pipeline converts English-language videos to Hindi with the original speaker's voice preserved and lip movements synchronized to the Hindi speech. The system combines state-of-the-art open-source models in a modular architecture that prioritizes voice fidelity, natural Hindi speech, and realistic lip synchronization.
+
+## 2. ARCHITECTURE COMPONENTS
+
+### 2.1. Audio Extraction & Processing
+- **Tool**: FFmpeg
+- **Input**: English video (.mp4)
+- **Output**: Extracted audio (.wav, 16kHz, mono)
+- **Process**:
+  ```bash
+  ffmpeg -i input_video.mp4 -q:a 0 -ac 1 -ar 16000 -vn audio.wav
+  ```
+
+### 2.2. Speaker Diarization (Optional - for multi-speaker videos)
+- **Model**: PyAnnote or NVIDIA NeMo
+- **Input**: Extracted audio (.wav)
+- **Output**: JSON with time-stamped speaker segments
+  ```json
+  [
+    {"speaker": "Speaker1", "start": 0.0, "end": 5.2},
+    {"speaker": "Speaker2", "start": 5.2, "end": 10.7}
+  ]
+  ```
+
+### 2.3. Automatic Speech Recognition (ASR)
+- **Model**: OpenAI Whisper (large-v3)
+- **Input**: Audio segments
+- **Output**: Time-aligned English transcription with speaker labels
+- **Implementation**:
+  ```python
+  import whisper
+  model = whisper.load_model("large-v3")
+  result = model.transcribe("audio.wav", word_timestamps=True)
+  ```
+
+### 2.4. Reference Sample Selection
+- **Tool**: Custom audio analysis module
+- **Input**: 
+  - Full audio file
+  - ASR output (for segment boundaries)
+  - Speaker diarization (optional, for multi-speaker videos)
+- **Output**: 
+  - Set of diverse reference audio samples for each speaker
+  - Metadata with emotional characteristics
+- **Implementation**:
+  ```python
+  from src.reference_sampling import extract_reference_samples_from_asr
+  
+  # Extract diverse reference samples using ASR output
+  reference_samples = extract_reference_samples_from_asr(
+      audio_path="processed_data/audio/video_id.wav",
+      asr_json_path="processed_data/transcriptions/video_id_transcription.json", 
+      output_dir="processed_data/reference_samples/video_id",
+      diarization_path="processed_data/diarization/video_id.json"  # Optional
+  )
+  ```
+
+### 2.5. Translation (English → Hindi)
+- **Model**: Meta AI NLLB-200 (600M or 3.3B parameter version)
+- **Input**: English text segments
+- **Output**: Hindi translated text
+- **Implementation**:
+  ```python
+  from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+  
+  tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-3.3B")
+  model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-3.3B")
+  
+  inputs = tokenizer(english_text, return_tensors="pt")
+  translated_tokens = model.generate(
+      **inputs, forced_bos_token_id=tokenizer.lang_code_to_id["hin_Deva"]
+  )
+  hindi_text = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
+  ```
+
+### 2.6. Voice Cloning & Hindi TTS
+- **Model**: Coqui XTTS v2
+- **Approaches**:
+  - Zero-shot: Using selected reference samples directly
+  - Fine-tuned (optional): Speaker-specific model trained on original English audio
+- **Input**: 
+  - Hindi translated text
+  - Speaker reference audio samples (selected in step 2.4)
+- **Output**: Hindi speech audio in original speaker's voice
+- **Implementation**:
+  ```python
+  # Using XTTS v2 directly
+  from TTS.api import TTS
+  
+  # Load the model
+  tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", gpu=True)
+  
+  # Generate speech with voice cloning
+  tts.tts_with_xtts(
+      text="हिंदी में अनुवादित पाठ",  # Hindi translated text
+      language="hi",                   # Hindi language code
+      speaker_wav="path/to/reference_sample.wav",  # From step 2.4
+      output_path="hindi_speech.wav"
+  )
+  ```
+
+### 2.7. Lip Synchronization
+- **Model**: LatentSync v1.5
+- **Input**: 
+  - Original video frames
+  - Generated Hindi speech
+- **Output**: Lip-synced video with Hindi speech
+- **Implementation**:
+  ```bash
+  python inference.sh \
+    --video_path original_frames/ \
+    --audio_path hindi_speech.wav \
+    --output_path lip_synced_video.mp4 \
+    --inference_steps 25 \
+    --guidance_scale 1.5
+  ```
+
+### 2.8. Final Assembly & Post-processing
+- **Tool**: FFmpeg
+- **Input**: Lip-synced video, final Hindi audio
+- **Output**: Complete Hindi-dubbed video
+- **Implementation**:
+  ```bash
+  ffmpeg -i lip_synced_video.mp4 -i final_hindi_audio.wav \
+         -c:v copy -c:a aac -strict experimental \
+         -map 0:v:0 -map 1:a:0 final_hindi_video.mp4
+  ```
+
+## 3. VOICE CLONING FINE-TUNING WORKFLOW
+
+### 3.1. Data Preparation
+- Use the reference sampling module to select high-quality, diverse samples
+- Process audio to remove noise, normalize volume
+- Select 5-10 samples covering different emotional characteristics
+
+### 3.2. Fine-Tuning Process
+- **Using XTTS fine-tuning tools**:
+  ```bash
+  # Place reference samples in the fine-tuning directory
+  cp reference_samples/*.wav finetune/speaker_samples/
+  
+  # Launch fine-tuning
+  python TTS/finetune_tts.py --config_path TTS/xtts_ft_config.json \
+    --name "speaker_name" \
+    --language "en" \
+    --epochs 10 \
+    --batch_size 4 \
+    --save_step 1000
+  ```
+
+### 3.3. Model Evaluation
+- Generate test samples in both English and Hindi
+- Compare voice similarity using subjective evaluation
+- Refine model if necessary
+
+## 4. DATA FLOW & PIPELINE INTEGRATION
+
+### 4.1. Single-Speaker Pipeline
+```
+Video Input → Audio Extraction → ASR → Reference Sample Selection → Translation → 
+Voice Cloning TTS → Lip Sync → Final Assembly → Hindi Video Output
+```
+
+### 4.2. Multi-Speaker Pipeline
+```
+Video Input → Audio Extraction → Diarization → ASR → Reference Sample Selection → 
+For each speaker:
+  - Translation → Voice Cloning TTS
+Combine Hindi Audio → Lip Sync → Final Assembly → Hindi Video Output
+```
+
+## 5. TECHNICAL REQUIREMENTS
+
+### 5.1. Hardware Recommendations
+- **GPU**: NVIDIA GPU with at least 8GB VRAM
+  - XTTS v2: 4-6GB VRAM
+  - LatentSync: 7-8GB VRAM
+- **CPU**: 8+ cores recommended for parallel processing
+- **RAM**: Minimum 16GB, 32GB recommended
+- **Storage**: SSD with 100GB+ free space
+
+### 5.2. Software Dependencies
+- Python 3.10+
+- PyTorch 2.0+
+- FFmpeg
+- CUDA 11.8+ (for NVIDIA GPUs)
+- Git LFS (for model downloads)
+- Librosa (for audio analysis)
+- Soundfile (for audio processing)
+
+### 5.3. Model Storage
+- XTTS v2: ~1.5GB
+- NLLB-200 (3.3B version): ~7GB
+- Whisper (large-v3): ~3GB
+- LatentSync: ~2GB
+- Fine-tuned speaker models: ~300MB each
+
+## 6. OPTIMIZATION STRATEGIES
+
+### 6.1. Performance Optimizations
+- Use DeepSpeed or ONNX for 2-3x TTS speedup
+- Process video segments in parallel where possible
+- Pre-cache speaker embeddings from reference samples
+- Use batched inference for translation and TTS
+- Select reference samples by emotion for better TTS quality
+
+### 6.2. Quality Optimizations
+- Post-process translated text for improved Hindi naturalness
+- Select appropriate reference samples based on text emotion
+- Adjust TTS parameters (speed, pause length) to match original pacing
+- Fine-tune lip sync parameters per speaker
+
+## 7. IMPLEMENTATION TIMELINE & PHASES
+
+### Phase 1: Component Setup & Testing (Weeks 1-2)
+- Set up ASR, translation, and TTS components
+- Test each component individually
+- Establish API interfaces between components
+
+### Phase 2: Voice Cloning Pipeline (Weeks 3-4)
+- Implement reference sampling workflow for optimal sample selection
+- Set up zero-shot XTTS pipeline
+- Test cross-lingual voice transfer quality
+
+### Phase 3: Lip Sync Integration (Weeks 5-6)
+- Set up LatentSync
+- Integrate with TTS output
+- Test visual quality and lip sync accuracy
+
+### Phase 4: Full Pipeline Integration (Weeks 7-8)
+- Connect all components
+- Create end-to-end workflow
+- Optimize for performance and quality
+
+### Phase 5: Evaluation & Refinement (Weeks 9-10)
+- Conduct subjective quality evaluations
+- Refine component parameters
+- Document pipeline usage
+
+## 8. CHALLENGES & MITIGATIONS
+
+### 8.1. Translation Quality
+- **Challenge**: Direct English-Hindi translations may sound unnatural
+- **Mitigation**: 
+  - Post-process translations with Hindi grammar rules
+  - Consider manual review for critical content
+
+### 8.2. Voice Cloning Fidelity
+- **Challenge**: Cross-lingual voice cloning may lose some speaker characteristics
+- **Mitigation**:
+  - Use multiple diverse reference samples for TTS
+  - Select appropriate emotional reference samples based on text content
+  - Fine-tune XTTS models for important speakers
+
+### 8.3. Lip Sync Accuracy
+- **Challenge**: Hindi phonemes differ from English
+- **Mitigation**:
+  - Adjust LatentSync parameters per speaker
+  - Fine-tune guidance_scale for better sync
+
+## 9. EVALUATION METRICS
+
+- **Translation Quality**: BLEU score, human evaluation
+- **Voice Similarity**: MOS (Mean Opinion Score) by Hindi speakers
+- **Lip Sync Accuracy**: SyncNet confidence score
+- **Overall Quality**: Subjective viewer ratings
+
+## 10. MAINTENANCE & EXTENSIBILITY
+
+### 10.1. Model Updates
+- Regular checks for new versions of key models
+- Pipeline to easily swap in improved models
+
+### 10.2. Language Extensions
+- Design allows for adding new target languages
+- Modular architecture supports component replacement
+
+---
+
+This pipeline design provides a complete framework for English-to-Hindi video dubbing while preserving the original speaker's voice characteristics and ensuring realistic lip synchronization.
